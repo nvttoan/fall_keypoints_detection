@@ -1,0 +1,18 @@
+# --- Core ---
+torch>=2.2
+torchvision>=0.17
+torchaudio>=2.2
+
+# --- YOLOv8 (Ultralytics) ---
+ultralytics>=8.2.0
+
+# --- Image/Video Processing ---
+opencv-python>=4.9.0
+ffmpeg-python>=0.2.0
+numpy>=1.26.0
+
+# --- Utility / Optional ---
+pillow
+matplotlib
+tqdm
+mediapipe

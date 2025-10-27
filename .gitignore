@@ -1,0 +1,8 @@
+venv/
+Mydata/
+Mydata_mp4/
+Mydata_mp4.zip
+nturgb+d_skeletons/
+UR_Fall_normalized/
+model_final_1.pt
+fall_01_cam0_lstm.flattened.npy
