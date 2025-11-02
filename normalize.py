@@ -7,7 +7,6 @@ import re
 from pathlib import Path
 from typing import List
 
-# ===================== USER CONFIG =====================
 IMAGES_DIR = "UR Fall/fall/fall-01-cam0-rgb"
 OUTPUT_NPY = "fall_01_cam0_lstm.npy"
 FPS = 30.0
@@ -21,26 +20,27 @@ KEYPOINT_ORDER = [
     'Left Knee', 'Right Knee',
     'Left Ankle', 'Right Ankle'
 ]
-# =======================================================
 
+# truy xuất landmark dùng LANDMARK_MAP[name].value.
 mp_pose = mp.solutions.pose
 LANDMARK_MAP = {name: getattr(mp_pose.PoseLandmark, name.upper().replace(" ", "_")) for name in KEYPOINT_ORDER}
 
-# ----------------- Utility -----------------
+# sap xep frame theo tên file
 def natural_sort_key(s: str):
     parts = re.split(r'(\d+)', s)
     return [int(p) if p.isdigit() else p.lower() for p in parts]
-
+#' tra ve danh sach anh trong thu muc
 def list_images(folder: str) -> List[str]:
     exts = ("*.png", "*.jpg", "*.jpeg")
     files = []
     for ext in exts:
         files.extend(glob(os.path.join(folder, ext)))
     return sorted(files, key=lambda p: natural_sort_key(os.path.basename(p)))
-
+# lay keypoints tu anh
 def extract_keypoints_from_image(img_bgr):
     img_h, img_w = img_bgr.shape[:2]
-    img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
+    img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB) #BGR → RGB
+    # tao object pose
     with mp_pose.Pose(static_image_mode=True, model_complexity=2,
                       enable_segmentation=False, min_detection_confidence=0.5) as pose:
         res = pose.process(img_rgb)
@@ -48,21 +48,21 @@ def extract_keypoints_from_image(img_bgr):
         return None
     landmarks = res.pose_landmarks.landmark
     kp = []
-    for name in KEYPOINT_ORDER:
+    for name in KEYPOINT_ORDER: # lay 13 keypoints 
         lm = landmarks[LANDMARK_MAP[name].value]
-        x = lm.x * img_w
+        x = lm.x * img_w # chuyen toan bo ve toa do pixel
         y = lm.y * img_h
         c = getattr(lm, "visibility", getattr(lm, "presence", 0.0))
         kp.append((x, y, float(c)))
     return np.array(kp, dtype=float)
 
 def compute_centroid_and_scale(kps: np.ndarray, conf_thresh=CONF_THRESH, prev_centroid=None, img_height=480):
-    MIN_SCALE = img_height / 10
+    MIN_SCALE = img_height / 10 # gia tri scale nho nhat de tranh chia 0
     coords, conf = kps[:, :2], kps[:, 2]
     left_sh, right_sh = coords[1], coords[2]
     left_hip, right_hip = coords[7], coords[8]
 
-    sh_points, hip_points = [], []
+    sh_points, hip_points = [], [] # lay diem vai va hong co do tin cay
     if conf[1] > conf_thresh: sh_points.append(left_sh)
     if conf[2] > conf_thresh: sh_points.append(right_sh)
     if conf[7] > conf_thresh: hip_points.append(left_hip)
@@ -84,13 +84,14 @@ def compute_centroid_and_scale(kps: np.ndarray, conf_thresh=CONF_THRESH, prev_ce
     return centroid, scale
 
 def normalize_keypoints_frame(kps: np.ndarray, centroid, scale):
-    coords = (kps[:, :2] - centroid[None, :]) / float(scale)
+    coords = (kps[:, :2] - centroid[None, :]) / float(scale) # chuan hoa scale
     conf = kps[:, 2].copy()
     print(f"    Norm check -> min: {coords.min():.4f}, max: {coords.max():.4f}, mean: {coords.mean():.4f}")
     return np.concatenate([coords, conf[:, None]], axis=1)
 
+# noi suy gia tri thieu tu cac frame tin cay 
 def interpolate_missing(series: np.ndarray):
-    T = series.shape[0]
+    T = series.shape[0] # so frame
     for j in range(series.shape[1]):
         for c in range(2):
             vals = series[:, j, c]
@@ -115,7 +116,7 @@ def process_folder(images_dir: str, output_flattened: str, fps: float = 30.0):
     for f in files:
         img = cv2.imread(f)
         kp = extract_keypoints_from_image(img) if img is not None else None
-        if kp is None:
+        if kp is None: # khong lay duoc keypoints thi gan toan bo 0( de co thoi gian)
             kp = np.zeros((len(KEYPOINT_ORDER), 3), dtype=float)
         frames_kps.append(kp)
 
@@ -161,7 +162,6 @@ def process_folder(images_dir: str, output_flattened: str, fps: float = 30.0):
 
     angles = np.array(angles)[:, None]
 
-    # --- velocity ---
     dt = 1.0 / fps
     velocities = np.zeros((frames_kps.shape[0], len(KEYPOINT_ORDER)))
     for t in range(1, frames_kps.shape[0]):
@@ -176,10 +176,9 @@ def process_folder(images_dir: str, output_flattened: str, fps: float = 30.0):
 
     os.makedirs(os.path.dirname(output_flattened) or ".", exist_ok=True)
     np.save(output_flattened, flattened)
-    print(f"✅ Saved flattened: {output_flattened} | shape={flattened.shape}")
+    print(f"Saved flattened: {output_flattened} | shape={flattened.shape}")
     return flattened
 
-# ---------------- MAIN ----------------
 if __name__ == "__main__":
     flattened = process_folder(IMAGES_DIR, OUTPUT_NPY, FPS)
     if flattened is not None:

@@ -14,8 +14,8 @@ def convert_with_ffmpeg(input_path, output_path, target_fps):
         "-i", input_path,
         "-vf", f"fps={target_fps},format=yuv420p",  # Áp dụng FPS & chuẩn hóa định dạng
         "-c:v", "libx264",                          # Mã hóa H.264 chuẩn
-        "-c:a", "copy",                             # Giữ nguyên âm thanh
-        "-metadata:s:v", "rotate=0",                # Xóa tag xoay (đã áp dụng)
+        "-an",                                      # Giữ nguyên âm thanh
+        "-metadata:s:v", "rotate=0",                # Xóa tag xoay 
         "-y", output_path
     ]
     subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)

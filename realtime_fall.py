@@ -5,15 +5,13 @@ import torch
 import torch.nn as nn
 from collections import deque
 
-# ---------------- Config ----------------
 SEQ_LEN = 30
 FPS = 30.0
 CONF_THRESH = 0.1
 DEVICE = torch.device("cpu")
 
-MODEL_PATH = "model_final_1.pt"  # đổi đường dẫn nếu khác
+MODEL_PATH = "model_final_1.pt"  
 
-# ---------------- BlazePose setup ----------------
 mp_pose = mp.solutions.pose
 mp_drawing = mp.solutions.drawing_utils
 
@@ -28,7 +26,7 @@ KEYPOINT_ORDER = [
 ]
 LANDMARK_MAP = {name: getattr(mp_pose.PoseLandmark, name.upper().replace(" ", "_")) for name in KEYPOINT_ORDER}
 
-# ---------------- LSTM model ----------------
+# LSTM Model
 class LSTMClassifier(nn.Module):
     def __init__(self, input_dim, hidden_size=128, num_layers=2, dropout=0.3, bidir=False):
         super().__init__()
@@ -58,13 +56,11 @@ class LSTMClassifier(nn.Module):
         logits = self.fc(last_h).squeeze(1)
         return logits
 
-# ---------------- Load trained model ----------------
 INPUT_DIM = 13 * 4 + 1  # x,y,conf,velocity + angle
 model = LSTMClassifier(input_dim=INPUT_DIM)
 model.load_state_dict(torch.load(MODEL_PATH, map_location=DEVICE))
 model.to(DEVICE).eval()
 
-# ---------------- Utility functions ----------------
 def extract_keypoints(landmarks, img_w, img_h):
     kps = []
     for name in KEYPOINT_ORDER:
@@ -135,7 +131,7 @@ def compute_body_angle(kps, prev_angle):
         angle = prev_angle
     return angle
 
-# ---------------- Realtime loop ----------------
+# Realtime 
 cap = cv2.VideoCapture(0)
 prev_centroid, prev_kps, prev_angle = None, None, 0.0
 seq_buffer = deque(maxlen=SEQ_LEN)
@@ -155,7 +151,7 @@ with mp_pose.Pose(static_image_mode=False, model_complexity=1,
         results = pose.process(rgb)
 
         if results.pose_landmarks:
-            # === 🔹 Vẽ thủ công chỉ 13 điểm ===
+            #  Vẽ  13 điểm 
             kps = extract_keypoints(results.pose_landmarks, w, h)
             for i, (x, y, c) in enumerate(kps):
                 if c > CONF_THRESH:
@@ -163,7 +159,7 @@ with mp_pose.Pose(static_image_mode=False, model_complexity=1,
                     cv2.putText(frame, str(i + 1), (int(x) + 5, int(y) - 5),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
 
-            # === 🔹 Tính toán chuẩn hóa và feature ===
+            # Tính toán chuẩn hóa 
             centroid, scale = compute_centroid_and_scale(kps, prev_centroid, h)
             norm_kps = normalize_keypoints(kps, centroid, scale)
             angle = compute_body_angle(kps, prev_angle)

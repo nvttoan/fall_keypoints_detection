@@ -5,16 +5,14 @@ import torch
 import torch.nn as nn
 from collections import deque
 
-# ---------------- Config ----------------
 SEQ_LEN = 30
 FPS = 30.0
 CONF_THRESH = 0.1
 DEVICE = torch.device("cpu")
 
-VIDEO_PATH = "Mydata/fall/IMG_0643 7.MOV"   # 🔹 Đổi đường dẫn video
-MODEL_PATH = "model_final.pt"    # 🔹 Đường dẫn model
+VIDEO_PATH = "IMG_0643 3_30fps.mp4"  
+MODEL_PATH = "model_final.pt"    
 
-# ---------------- BlazePose setup ----------------
 mp_pose = mp.solutions.pose
 mp_drawing = mp.solutions.drawing_utils
 
@@ -59,13 +57,11 @@ class LSTMClassifier(nn.Module):
         logits = self.fc(last_h).squeeze(1)
         return logits
 
-# ---------------- Load trained model ----------------
 INPUT_DIM = 13 * 4 + 1
 model = LSTMClassifier(input_dim=INPUT_DIM)
 model.load_state_dict(torch.load(MODEL_PATH, map_location=DEVICE))
 model.to(DEVICE).eval()
 
-# ---------------- Utility functions ----------------
 def extract_keypoints(landmarks, img_w, img_h):
     kps = []
     for name in KEYPOINT_ORDER:
@@ -135,10 +131,8 @@ def compute_body_angle(kps, prev_angle):
         angle = prev_angle
     return angle
 
-# ---------------- Video loop ----------------
 cap = cv2.VideoCapture(VIDEO_PATH)
 
-# --- Xử lý xoay video nếu có metadata ---
 try:
     rotate_code = None
     rotation = int(cap.get(cv2.CAP_PROP_ORIENTATION_META))
